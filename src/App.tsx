@@ -185,14 +185,12 @@ export default function App() {
 
   const weekDays = getWeekDays();
 
-  // Enhanced visual hierarchy tiers
   const priorityStyles = {
     easy: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]',
     medium: 'border-amber-500/30 bg-amber-500/10 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.1)]',
     hard: 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.15)]'
   };
 
-  // Global aggregate variables
   const totalStreakPool = tasks.reduce((acc, t) => acc + t.streak, 0);
   const activeTasksCount = tasks.filter(t => currentTime < t.deadlineTime).length;
 
@@ -214,7 +212,7 @@ export default function App() {
             Precision Micro-Scheduling Framework // Version 2.0
           </p>
 
-          {/* New Global Level Engine Metrics */}
+          {/* Global Level Engine Metrics */}
           <div className="grid grid-cols-2 gap-4 max-w-md mx-auto p-1.5 bg-neutral-900/40 border border-neutral-800/80 rounded-2xl backdrop-blur-md shadow-inner">
             <div className="flex items-center gap-3 px-4 py-3 bg-neutral-950/60 rounded-xl border border-neutral-900">
               <TrophyIcon className="h-5 w-5 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
@@ -250,25 +248,28 @@ export default function App() {
             
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 flex-1">
-                {/* START CALENDAR */}
-                <div className="flex items-center gap-2.5 bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 py-2 flex-1 focus-within:border-neutral-700 transition-all">
+                
+                {/* START CALENDAR - STYLED FIX */}
+                <div className="flex items-center justify-between gap-2.5 bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 py-2 flex-1 focus-within:border-neutral-700 transition-all relative">
                   <span className="text-[10px] text-neutral-500 font-black uppercase tracking-widest font-mono">Start</span>
                   <input
                     type="date"
                     value={startDateInput}
                     onChange={(e) => setStartDateInput(e.target.value)}
-                    className="bg-transparent font-bold outline-none text-xs text-slate-300 cursor-pointer w-full tracking-wide uppercase color-scheme-dark"
+                    className="bg-transparent font-bold outline-none text-xs text-slate-200 cursor-pointer tracking-wide uppercase w-full text-right"
+                    style={{ colorScheme: 'dark' }}
                   />
                 </div>
 
-                {/* END CALENDAR */}
-                <div className="flex items-center gap-2.5 bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 py-2 flex-1 focus-within:border-neutral-700 transition-all">
+                {/* END CALENDAR - STYLED FIX */}
+                <div className="flex items-center justify-between gap-2.5 bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 py-2 flex-1 focus-within:border-neutral-700 transition-all relative">
                   <span className="text-[10px] text-neutral-500 font-black uppercase tracking-widest font-mono">End</span>
                   <input
                     type="date"
                     value={endDateInput}
                     onChange={(e) => setEndDateInput(e.target.value)}
-                    className="bg-transparent font-bold outline-none text-xs text-slate-300 cursor-pointer w-full tracking-wide uppercase color-scheme-dark"
+                    className="bg-transparent font-bold outline-none text-xs text-slate-200 cursor-pointer tracking-wide uppercase w-full text-right"
+                    style={{ colorScheme: 'dark' }}
                   />
                 </div>
               </div>
@@ -299,7 +300,6 @@ export default function App() {
                     : 'border-neutral-800/80 bg-neutral-900/30 hover:border-neutral-700 hover:-translate-y-0.5 shadow-md'
                 }`}
               >
-                {/* Horizontal Neon Indicator bar for active items */}
                 {!isExpired && !isCompletedToday && (
                   <div className={`absolute left-0 top-1/4 w-[3px] h-1/2 rounded-r-full transition-all ${
                     task.priority === 'hard' ? 'bg-rose-500' : task.priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
@@ -383,7 +383,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Cyberpunk Extended Configuration Module */}
+                {/* Configurations Expanded Module */}
                 {editingTaskId === task.id && (
                   <div className="p-5 bg-neutral-950 border border-neutral-900 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative">
                     <div className="absolute top-0 left-6 w-12 h-[2px] bg-orange-500" />
@@ -420,7 +420,8 @@ export default function App() {
                               type="date" 
                               value={editStartDateInput} 
                               onChange={(e) => setEditStartDateInput(e.target.value)}
-                              className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-300 color-scheme-dark"
+                              className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-300"
+                              style={{ colorScheme: 'dark' }}
                             />
                           </div>
                           <div>
@@ -429,7 +430,8 @@ export default function App() {
                               type="date" 
                               value={editEndDateInput} 
                               onChange={(e) => setEditEndDateInput(e.target.value)}
-                              className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-300 color-scheme-dark"
+                              className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-300"
+                              style={{ colorScheme: 'dark' }}
                             />
                           </div>
                         </div>
