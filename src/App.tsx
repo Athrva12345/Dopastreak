@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { FireIcon, TrashIcon, PlusIcon, CheckCircleIcon, ClockIcon, PencilIcon, SparklesIcon, ShieldExclamationIcon, DocumentTextIcon, CalendarIcon } from '@heroicons/react/24/solid';
+import { FireIcon, TrashIcon, PlusIcon, CheckCircleIcon, ClockIcon, PencilIcon, SparklesIcon, ShieldExclamationIcon, DocumentTextIcon, CalendarIcon, BoltIcon, TrophyIcon } from '@heroicons/react/24/solid';
 
 interface Task {
   id: string;
   name: string;
   streak: number;
   lastCompleted: string | null; 
-  startDate: string;   // Explicit selected start date formatted string
-  endDate: string;     // Explicit selected end date formatted string
+  startDate: string;   
+  endDate: string;     
   deadlineTime: number; 
   priority: 'easy' | 'medium' | 'hard';
   note: string;
@@ -16,11 +16,8 @@ interface Task {
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskName, setNewTaskName] = useState('');
-  
-  // Two distinct visual calendar picker states
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
-  
   const [currentTime, setCurrentTime] = useState(Date.now());
   
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -29,12 +26,10 @@ export default function App() {
   const [editPriority, setEditPriority] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [editNote, setEditNote] = useState('');
 
-  // Automatically preset Start Date to today, and End Date to 20 days out
   useEffect(() => {
     const today = new Date();
     const future = new Date();
     future.setDate(today.getDate() + 20);
-    
     setStartDateInput(today.toISOString().split('T')[0]);
     setEndDateInput(future.toISOString().split('T')[0]);
   }, []);
@@ -64,8 +59,6 @@ export default function App() {
 
     const startObj = new Date(startDateInput);
     const endObj = new Date(endDateInput);
-    
-    // Set deadline time to the absolute end of the targeted finish day
     endObj.setHours(23, 59, 59, 999);
 
     if (endObj.getTime() <= startObj.getTime()) {
@@ -101,7 +94,6 @@ export default function App() {
         let finalStartDateString = task.startDate;
         let finalEndDateString = task.endDate;
 
-        // Re-calculate dates if user edited them in configuration drawer
         if (editStartDateInput) {
           finalStartDateString = new Date(editStartDateInput).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
@@ -141,7 +133,6 @@ export default function App() {
       return task;
     });
     saveTasks(updated);
-    alert("🛡️ Freeze Shield Active! 24 Hours pushed down your calendar deadline.");
   };
 
   const completeTaskDaily = (id: string) => {
@@ -149,15 +140,8 @@ export default function App() {
     
     const updated = tasks.map(task => {
       if (task.id === id) {
-        if (currentTime > task.deadlineTime) {
-          alert("This calendar deadline has already closed!");
-          return task;
-        }
-
-        if (task.lastCompleted && new Date(task.lastCompleted).toDateString() === todayStr) {
-          alert("Streak secured for today! Save some fuel for tomorrow.");
-          return task;
-        }
+        if (currentTime > task.deadlineTime) return task;
+        if (task.lastCompleted && new Date(task.lastCompleted).toDateString() === todayStr) return task;
         
         return {
           ...task,
@@ -173,13 +157,14 @@ export default function App() {
 
   const getDeadlineCountdown = (deadline: number) => {
     const totalMs = deadline - currentTime;
-    if (totalMs <= 0) return "TIME EXPIRED 🛑";
+    if (totalMs <= 0) return "EXPIRED";
 
     const totalSeconds = Math.floor(totalMs / 1000);
     const days = Math.floor(totalSeconds / (3600 * 24));
     const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
 
-    return `${days}d ${hours}h left`;
+    return `${days}d ${hours}h ${mins}m`;
   };
 
   const getWeekDays = () => {
@@ -200,75 +185,102 @@ export default function App() {
 
   const weekDays = getWeekDays();
 
+  // Enhanced visual hierarchy tiers
   const priorityStyles = {
-    easy: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400',
-    medium: 'border-amber-500/20 bg-amber-500/5 text-amber-400',
-    hard: 'border-rose-500/40 bg-rose-500/10 text-rose-400'
+    easy: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]',
+    medium: 'border-amber-500/30 bg-amber-500/10 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.1)]',
+    hard: 'border-rose-500/40 bg-rose-500/10 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.15)]'
   };
 
+  // Global aggregate variables
+  const totalStreakPool = tasks.reduce((acc, t) => acc + t.streak, 0);
+  const activeTasksCount = tasks.filter(t => currentTime < t.deadlineTime).length;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans px-4 py-12 md:py-20 selection:bg-orange-500/30">
+    <div className="min-h-screen bg-neutral-950 text-slate-100 font-sans antialiased px-4 py-12 selection:bg-orange-500/40 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-neutral-950 to-neutral-950">
       <div className="max-w-4xl mx-auto">
         
-        {/* Header */}
-        <header className="mb-14 text-center">
-          <div className="inline-flex items-center gap-3 mb-3">
-            <FireIcon className="h-14 w-14 text-orange-500 animate-pulse" />
-            <h1 className="text-5xl md:text-6xl font-black tracking-tight bg-gradient-to-r from-orange-400 via-amber-500 to-yellow-400 bg-clip-text text-transparent">
+        {/* Neon HUD Header */}
+        <header className="mb-12 text-center relative">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-20 bg-orange-500/10 blur-[80px] rounded-full pointer-events-none" />
+          
+          <div className="inline-flex items-center gap-3.5 mb-2 relative">
+            <FireIcon className="h-12 w-12 text-orange-500 drop-shadow-[0_0_15px_rgba(249,115,22,0.6)] animate-pulse" />
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-neutral-100 via-orange-400 to-amber-300 bg-clip-text text-transparent uppercase">
               DopaStreak
             </h1>
           </div>
-          <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">
-            Precision micro-scheduling framework.
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.25em] mb-8">
+            Precision Micro-Scheduling Framework // Version 2.0
           </p>
+
+          {/* New Global Level Engine Metrics */}
+          <div className="grid grid-cols-2 gap-4 max-w-md mx-auto p-1.5 bg-neutral-900/40 border border-neutral-800/80 rounded-2xl backdrop-blur-md shadow-inner">
+            <div className="flex items-center gap-3 px-4 py-3 bg-neutral-950/60 rounded-xl border border-neutral-900">
+              <TrophyIcon className="h-5 w-5 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
+              <div className="text-left">
+                <div className="text-[10px] text-slate-500 font-black tracking-wider uppercase">Global Score</div>
+                <div className="text-xl font-black text-slate-100 font-mono tracking-tight">{totalStreakPool} PTS</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3 bg-neutral-950/60 rounded-xl border border-neutral-900">
+              <BoltIcon className="h-5 w-5 text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]" />
+              <div className="text-left">
+                <div className="text-[10px] text-slate-500 font-black tracking-wider uppercase">Active Buffs</div>
+                <div className="text-xl font-black text-slate-100 font-mono tracking-tight">{activeTasksCount} CORES</div>
+              </div>
+            </div>
+          </div>
         </header>
 
-        {/* Deploy Form with Dual Calendar System (Start & End) */}
-        <form onSubmit={addTask} className="mb-12 p-4 bg-slate-900/60 border border-slate-800 rounded-2xl shadow-2xl focus-within:border-orange-500/50 focus-within:ring-4 focus-within:ring-orange-500/10 transition-all duration-300">
+        {/* Deploy Terminal Command Panel */}
+        <form onSubmit={addTask} className="mb-10 p-5 bg-neutral-900/40 border border-neutral-800/70 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl focus-within:border-orange-500/40 transition-all duration-500 relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-neutral-700/50 to-transparent group-focus-within:via-orange-500/50 transition-all duration-700" />
+          
           <div className="flex flex-col gap-4">
-            <input
-              type="text"
-              value={newTaskName}
-              onChange={(e) => setNewTaskName(e.target.value)}
-              placeholder="What target target are we scheduling?..."
-              className="w-full px-2 py-2 bg-transparent text-slate-100 text-xl font-bold outline-none placeholder:text-slate-500 border-b border-slate-800/80 focus:border-slate-700 pb-3"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={newTaskName}
+                onChange={(e) => setNewTaskName(e.target.value)}
+                placeholder="INITIALIZE NEW FOCUS CORE OBJECTIVE..."
+                className="w-full px-3 py-2.5 bg-neutral-950/40 border border-neutral-800/60 focus:border-neutral-700/90 rounded-xl text-slate-200 text-md font-bold outline-none placeholder:text-neutral-600 font-mono transition-all"
+              />
+            </div>
             
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1">
-              
-              {/* Dual Range Picker Container */}
-              <div className="flex items-center gap-2 flex-1 flex-wrap sm:flex-nowrap">
-                {/* START PICKER */}
-                <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 flex-1">
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Start:</span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-1">
+                {/* START CALENDAR */}
+                <div className="flex items-center gap-2.5 bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 py-2 flex-1 focus-within:border-neutral-700 transition-all">
+                  <span className="text-[10px] text-neutral-500 font-black uppercase tracking-widest font-mono">Start</span>
                   <input
                     type="date"
                     value={startDateInput}
                     onChange={(e) => setStartDateInput(e.target.value)}
-                    className="bg-transparent font-bold outline-none text-xs text-slate-200 cursor-pointer w-full"
+                    className="bg-transparent font-bold outline-none text-xs text-slate-300 cursor-pointer w-full tracking-wide uppercase color-scheme-dark"
                   />
                 </div>
 
-                {/* END PICKER */}
-                <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 flex-1">
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">End:</span>
+                {/* END CALENDAR */}
+                <div className="flex items-center gap-2.5 bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 py-2 flex-1 focus-within:border-neutral-700 transition-all">
+                  <span className="text-[10px] text-neutral-500 font-black uppercase tracking-widest font-mono">End</span>
                   <input
                     type="date"
                     value={endDateInput}
                     onChange={(e) => setEndDateInput(e.target.value)}
-                    className="bg-transparent font-bold outline-none text-xs text-slate-200 cursor-pointer w-full"
+                    className="bg-transparent font-bold outline-none text-xs text-slate-300 cursor-pointer w-full tracking-wide uppercase color-scheme-dark"
                   />
                 </div>
               </div>
               
-              <button type="submit" className="md:w-auto px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer whitespace-nowrap">
-                <PlusIcon className="h-5 w-5 stroke-[3]" /> Deploy Timeline
+              <button type="submit" className="px-6 py-3 bg-neutral-100 hover:bg-orange-500 text-neutral-950 hover:text-white font-black text-xs uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 shadow-lg hover:shadow-orange-500/20 transition-all duration-300 cursor-pointer border border-neutral-200/10">
+                <PlusIcon className="h-4 w-4 stroke-[3]" /> Deploy Core
               </button>
             </div>
           </div>
         </form>
 
-        {/* Dashboard Cards Feed */}
+        {/* Premium Dashboard Feed Matrix */}
         <div className="space-y-4">
           {tasks.map(task => {
             const isCompletedToday = task.lastCompleted && new Date(task.lastCompleted).toDateString() === new Date().toDateString();
@@ -277,64 +289,81 @@ export default function App() {
             return (
               <div 
                 key={task.id} 
-                className={`flex flex-col p-6 rounded-2xl border transition-all duration-500 gap-5 bg-slate-900 ${
-                  isExpired ? 'opacity-50 border-rose-950/40' : task.priority === 'hard' ? 'border-rose-500/30 ring-1 ring-rose-500/10 shadow-lg' : 'border-slate-800/80 shadow-xl'
+                className={`flex flex-col p-5 rounded-2xl border transition-all duration-500 gap-5 relative group/card ${
+                  isExpired 
+                    ? 'opacity-40 border-neutral-900 bg-neutral-950/40' 
+                    : isCompletedToday
+                    ? 'border-emerald-500/20 bg-neutral-900/20 shadow-lg'
+                    : task.priority === 'hard' 
+                    ? 'border-rose-500/20 bg-neutral-900/40 shadow-[0_10px_30px_rgba(244,63,94,0.03)] hover:border-rose-500/40' 
+                    : 'border-neutral-800/80 bg-neutral-900/30 hover:border-neutral-700 hover:-translate-y-0.5 shadow-md'
                 }`}
               >
-                {/* Top Information Controls */}
+                {/* Horizontal Neon Indicator bar for active items */}
+                {!isExpired && !isCompletedToday && (
+                  <div className={`absolute left-0 top-1/4 w-[3px] h-1/2 rounded-r-full transition-all ${
+                    task.priority === 'hard' ? 'bg-rose-500' : task.priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`} />
+                )}
+
+                {/* Primary Management Hub Row */}
                 <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-5 flex-1">
+                  <div className="flex items-center gap-4.5 flex-1">
                     <button
                       onClick={() => completeTaskDaily(task.id)}
                       disabled={isCompletedToday || isExpired}
-                      className={`p-1.5 rounded-xl transition-all duration-300 ${
+                      className={`p-1 rounded-xl transition-all duration-300 ${
                         isCompletedToday 
-                          ? 'text-emerald-400 bg-emerald-500/10' 
-                          : isExpired ? 'text-slate-800 cursor-not-allowed' : 'text-slate-400 bg-slate-800 hover:bg-orange-500/20 hover:text-orange-400 cursor-pointer'
+                          ? 'text-emerald-400 bg-emerald-500/10 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]' 
+                          : isExpired 
+                          ? 'text-neutral-800 cursor-not-allowed border border-neutral-900' 
+                          : 'text-neutral-500 bg-neutral-950/80 border border-neutral-800/60 hover:border-orange-500/50 hover:text-orange-400 cursor-pointer'
                       }`}
                     >
-                      <CheckCircleIcon className="h-9 w-9 md:h-10 md:w-10" />
+                      <CheckCircleIcon className="h-10 w-10 md:h-11 md:w-11" />
                     </button>
                     
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className={`font-bold text-xl md:text-2xl tracking-tight ${isCompletedToday ? 'line-through text-slate-400 font-medium' : 'text-slate-100'}`}>
+                        <h3 className={`font-bold text-xl tracking-tight transition-all duration-300 ${
+                          isCompletedToday ? 'line-through text-neutral-600 font-medium' : 'text-neutral-100'
+                        }`}>
                           {task.name}
                         </h3>
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${priorityStyles[task.priority || 'easy']}`}>
+                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${priorityStyles[task.priority || 'easy']}`}>
                           {task.priority || 'easy'}
                         </span>
                       </div>
 
-                      {/* Displaying Precise Boundaries */}
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold tracking-wide">
-                        <CalendarIcon className="h-3.5 w-3.5 text-orange-500/80" />
-                        <span className="bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800 text-slate-300">
-                          {task.startDate} ➔ {task.endDate}
-                        </span>
+                      {/* Explicit Timeline Grid Markers */}
+                      <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-neutral-500">
+                        <CalendarIcon className="h-3.5 w-3.5 text-neutral-600" />
+                        <span className="text-neutral-400">{task.startDate}</span>
+                        <span className="text-neutral-600 font-sans text-[10px]">➔</span>
+                        <span className="text-neutral-300 bg-neutral-950 px-2 py-0.5 rounded-md border border-neutral-900">{task.endDate}</span>
                       </div>
                       
                       {task.note && (
-                        <p className="text-xs text-slate-400 italic font-medium flex items-center gap-1 pt-0.5">
-                          <DocumentTextIcon className="h-3.5 w-3.5 text-slate-500" /> {task.note}
+                        <p className="text-xs text-neutral-400 italic font-medium flex items-center gap-1 bg-neutral-950/40 p-1.5 rounded-lg border border-neutral-900/50 max-w-prose">
+                          <DocumentTextIcon className="h-3.5 w-3.5 text-neutral-600" /> {task.note}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  {/* Right Analytics */}
-                  <div className="flex items-center justify-between md:justify-end gap-3">
-                    <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-mono font-bold bg-slate-950 text-blue-400 border border-slate-800/80">
-                      <ClockIcon className="h-4 w-4 text-blue-500" />
+                  {/* Quantitative Metric Badges */}
+                  <div className="flex items-center justify-between md:justify-end gap-3 flex-wrap sm:flex-nowrap">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-neutral-950 border border-neutral-900 text-blue-400 shadow-inner">
+                      <ClockIcon className="h-3.5 w-3.5 text-blue-500/80" />
                       <span>{getDeadlineCountdown(task.deadlineTime)}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-base md:text-lg font-black bg-gradient-to-r from-orange-500/10 to-amber-500/10 text-orange-400 border border-orange-500/30">
-                      <FireIcon className="h-5 w-5 text-orange-500" />
-                      <span>{task.streak} DAYS</span>
+                    <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-black bg-orange-500/5 text-orange-400 border border-orange-500/20 shadow-md">
+                      <FireIcon className="h-4 w-4 text-orange-500 drop-shadow-[0_0_6px_rgba(249,115,22,0.4)]" />
+                      <span className="font-mono">{task.streak}D</span>
                     </div>
 
-                    <div className="flex gap-1 border-l border-slate-800 pl-2">
+                    <div className="flex gap-0.5 border-l border-neutral-900 pl-1.5 opacity-60 group-hover/card:opacity-100 transition-all">
                       <button
                         onClick={() => { 
                           setEditingTaskId(task.id); 
@@ -343,37 +372,39 @@ export default function App() {
                           setEditPriority(task.priority || 'easy');
                           setEditNote(task.note || '');
                         }}
-                        className="text-slate-500 hover:text-blue-400 p-2 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
+                        className="text-neutral-500 hover:text-neutral-200 p-2 rounded-lg hover:bg-neutral-900 transition-all cursor-pointer"
                       >
-                        <PencilIcon className="h-5 w-5" />
+                        <PencilIcon className="h-4 w-4" />
                       </button>
-                      <button onClick={() => deleteTask(task.id)} className="text-slate-600 hover:text-rose-400 p-2 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer">
-                        <TrashIcon className="h-5 w-5" />
+                      <button onClick={() => deleteTask(task.id)} className="text-neutral-600 hover:text-rose-400 p-2 rounded-lg hover:bg-rose-500/5 transition-all cursor-pointer">
+                        <TrashIcon className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Configurations Expanded Sub-Menu Area */}
+                {/* Cyberpunk Extended Configuration Module */}
                 {editingTaskId === task.id && (
-                  <div className="p-5 bg-slate-950 border border-slate-800/80 rounded-2xl space-y-4 animate-fadeIn">
-                    <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-900 pb-2">
-                      <SparklesIcon className="h-4 w-4 text-orange-500" />
-                      Re-Configure Timeline Boundaries
+                  <div className="p-5 bg-neutral-950 border border-neutral-900 rounded-2xl space-y-4 animate-fadeIn shadow-2xl relative">
+                    <div className="absolute top-0 left-6 w-12 h-[2px] bg-orange-500" />
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-neutral-900 pb-2.5 font-mono">
+                      <SparklesIcon className="h-3.5 w-3.5 text-orange-500" /> Mod Core Matrix Parameters
                     </h4>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-3">
+                      <div className="space-y-3.5">
                         <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Priority Multiplier</label>
+                          <label className="block text-[10px] font-black text-neutral-500 uppercase tracking-wider mb-1.5 font-mono">Priority Factor</label>
                           <div className="flex gap-2">
                             {(['easy', 'medium', 'hard'] as const).map((tier) => (
                               <button
                                 key={tier}
                                 type="button"
                                 onClick={() => setEditPriority(tier)}
-                                className={`flex-1 p-2 text-xs font-black uppercase tracking-wider rounded-xl border transition-all ${
-                                  editPriority === tier ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-900 border-slate-800 text-slate-500'
+                                className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg border font-mono transition-all cursor-pointer ${
+                                  editPriority === tier 
+                                    ? 'bg-neutral-900 border-neutral-700 text-slate-100 shadow-md' 
+                                    : 'bg-neutral-950 border-neutral-900/80 text-neutral-600 hover:text-neutral-400'
                                 }`}
                               >
                                 {tier}
@@ -382,75 +413,77 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* EDIT START & END DATES */}
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Edit Start</label>
+                            <label className="block text-[10px] font-black text-neutral-500 uppercase tracking-wider mb-1 font-mono">Shift Start</label>
                             <input 
                               type="date" 
                               value={editStartDateInput} 
                               onChange={(e) => setEditStartDateInput(e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-200"
+                              className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-300 color-scheme-dark"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Edit End</label>
+                            <label className="block text-[10px] font-black text-neutral-500 uppercase tracking-wider mb-1 font-mono">Shift End</label>
                             <input 
                               type="date" 
                               value={editEndDateInput} 
                               onChange={(e) => setEditEndDateInput(e.target.value)}
-                              className="w-full bg-slate-900 border border-slate-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-200"
+                              className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-300 color-scheme-dark"
                             />
                           </div>
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Focus Anchor Description</label>
+                        <label className="block text-[10px] font-black text-neutral-500 uppercase tracking-wider mb-1.5 font-mono">Anchor Logs / Sub-Notes</label>
                         <textarea
                           value={editNote}
                           onChange={(e) => setEditNote(e.target.value)}
-                          className="w-full h-24 px-3 py-2 bg-slate-900 border border-slate-800 text-slate-100 rounded-xl text-sm outline-none resize-none"
+                          placeholder="Inject logs or notes regarding this directive..."
+                          className="w-full h-[92px] px-3 py-2 bg-neutral-900 border border-neutral-800 text-slate-200 text-xs rounded-xl outline-none resize-none focus:border-neutral-700 transition-all font-mono"
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-slate-900 pt-3 mt-2 flex-wrap gap-2">
+                    <div className="flex items-center justify-between border-t border-neutral-900/60 pt-3 flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => applyFreezeDay(task.id)}
-                        className="px-4 py-2 bg-slate-900 border border-slate-800 hover:border-amber-500/30 text-amber-400 hover:bg-amber-500/5 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                        className="px-3.5 py-1.5 bg-neutral-900 border border-neutral-800 hover:border-amber-500/30 text-amber-400 hover:bg-amber-500/5 font-black text-[10px] uppercase tracking-wider rounded-lg flex items-center gap-1.5 transition-all cursor-pointer font-mono"
                       >
-                        <ShieldExclamationIcon className="h-4 w-4" /> Apply Freeze Day (+24h)
+                        <ShieldExclamationIcon className="h-4 w-4" /> Trigger Freeze (+24h)
                       </button>
 
                       <div className="flex gap-2 ml-auto">
-                        <button onClick={() => setEditingTaskId(null)} className="px-4 py-2 bg-slate-900 text-slate-400 font-bold text-xs rounded-xl cursor-pointer">Cancel</button>
-                        <button onClick={() => saveTaskEdits(task.id)} className="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer">Save Changes</button>
+                        <button onClick={() => setEditingTaskId(null)} className="px-3.5 py-1.5 bg-neutral-900 text-neutral-400 font-bold text-xs rounded-xl cursor-pointer">Cancel</button>
+                        <button onClick={() => saveTaskEdits(task.id)} className="px-4 py-1.5 bg-white text-neutral-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-md cursor-pointer hover:bg-neutral-200 transition-all">Apply Matrix</button>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Bottom Row Calendar Visualization Cells */}
-                <div className="border-t border-slate-800/60 pt-4">
-                  <div className="grid grid-cols-7 gap-2 max-w-md">
+                {/* Synchronization Strip Footer */}
+                <div className="border-t border-neutral-900 pt-3.5">
+                  <div className="grid grid-cols-7 gap-1.5 max-w-sm">
                     {weekDays.map((day, idx) => {
                       const completedThisSlot = isCompletedToday && day.isToday;
 
                       return (
                         <div 
                           key={idx} 
-                          className={`flex flex-col items-center p-2 rounded-xl border transition-all duration-300 ${
+                          className={`flex flex-col items-center py-1.5 px-1 rounded-xl border transition-all duration-300 ${
                             completedThisSlot 
-                              ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
+                              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' 
                               : day.isToday 
-                              ? 'bg-orange-500/5 border-orange-500/50 text-orange-400 font-bold' 
-                              : 'bg-slate-950 border-slate-900 text-slate-500'
+                              ? 'bg-orange-500/5 border-orange-500/40 text-orange-400 font-bold' 
+                              : 'bg-neutral-950/50 border-neutral-950 text-neutral-600'
                           }`}
                         >
-                          <span className="text-xs uppercase tracking-wider font-semibold">{day.name}</span>
-                          <span className={`text-xs mt-1 px-1.5 py-0.5 rounded-md font-mono ${day.isToday && !completedThisSlot ? 'bg-orange-500/20' : ''}`}>
+                          <span className="text-[9px] uppercase tracking-wider font-mono font-black">{day.name}</span>
+                          <span className={`text-[11px] mt-0.5 px-1 font-mono font-bold rounded ${
+                            day.isToday && !completedThisSlot ? 'text-orange-400' : ''
+                          }`}>
                             {new Date(day.dateString).getDate()}
                           </span>
                         </div>
