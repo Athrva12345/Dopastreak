@@ -6,8 +6,8 @@ interface Task {
   name: string;
   streak: number;
   lastCompleted: string | null; 
-  startDate: string;   // Saved human-readable start date
-  endDate: string;     // Saved human-readable target deadline date
+  startDate: string;   // Explicit selected start date formatted string
+  endDate: string;     // Explicit selected end date formatted string
   deadlineTime: number; 
   priority: 'easy' | 'medium' | 'hard';
   note: string;
@@ -17,20 +17,26 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskName, setNewTaskName] = useState('');
   
-  // Visual Calendar Inputs (Formatted as YYYY-MM-DD)
-  const [targetDateInput, setTargetDateInput] = useState('');
+  // Two distinct visual calendar picker states
+  const [startDateInput, setStartDateInput] = useState('');
+  const [endDateInput, setEndDateInput] = useState('');
+  
   const [currentTime, setCurrentTime] = useState(Date.now());
   
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editStartDateInput, setEditStartDateInput] = useState('');
   const [editEndDateInput, setEditEndDateInput] = useState('');
   const [editPriority, setEditPriority] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [editNote, setEditNote] = useState('');
 
-  // Set default target date to 20 days from today on initial load
+  // Automatically preset Start Date to today, and End Date to 20 days out
   useEffect(() => {
     const today = new Date();
-    today.setDate(today.getDate() + 20);
-    setTargetDateInput(today.toISOString().split('T')[0]);
+    const future = new Date();
+    future.setDate(today.getDate() + 20);
+    
+    setStartDateInput(today.toISOString().split('T')[0]);
+    setEndDateInput(future.toISOString().split('T')[0]);
   }, []);
 
   useEffect(() => {
@@ -54,15 +60,16 @@ export default function App() {
 
   const addTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskName.trim() || !targetDateInput) return;
+    if (!newTaskName.trim() || !startDateInput || !endDateInput) return;
 
-    const start = new Date();
-    // Set the target deadline time to the very end of the selected day (23:59:59)
-    const end = new Date(targetDateInput);
-    end.setHours(23, 59, 59, 999);
+    const startObj = new Date(startDateInput);
+    const endObj = new Date(endDateInput);
+    
+    // Set deadline time to the absolute end of the targeted finish day
+    endObj.setHours(23, 59, 59, 999);
 
-    if (end.getTime() <= start.getTime()) {
-      alert("The target date must be set in the future!");
+    if (endObj.getTime() <= startObj.getTime()) {
+      alert("The final target date must be set after your chosen start date!");
       return;
     }
 
@@ -71,20 +78,15 @@ export default function App() {
       name: newTaskName.trim(),
       streak: 0,
       lastCompleted: null,
-      startDate: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      endDate: end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      deadlineTime: end.getTime(),
+      startDate: startObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      endDate: endObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      deadlineTime: endObj.getTime(),
       priority: 'easy',
       note: ''
     };
 
     saveTasks([...tasks, newTask]);
     setNewTaskName('');
-    
-    // Reset date input back to a clean 20-day default window
-    const futureDefault = new Date();
-    futureDefault.setDate(futureDefault.getDate() + 20);
-    setTargetDateInput(futureDefault.toISOString().split('T')[0]);
   };
 
   const deleteTask = (id: string) => {
@@ -95,22 +97,28 @@ export default function App() {
   const saveTaskEdits = (id: string) => {
     const updated = tasks.map(task => {
       if (task.id === id) {
-        let newDeadlineTime = task.deadlineTime;
-        let newEndDateString = task.endDate;
+        let finalDeadlineTime = task.deadlineTime;
+        let finalStartDateString = task.startDate;
+        let finalEndDateString = task.endDate;
 
+        // Re-calculate dates if user edited them in configuration drawer
+        if (editStartDateInput) {
+          finalStartDateString = new Date(editStartDateInput).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
         if (editEndDateInput) {
           const targetEnd = new Date(editEndDateInput);
           targetEnd.setHours(23, 59, 59, 999);
-          newDeadlineTime = targetEnd.getTime();
-          newEndDateString = targetEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          finalDeadlineTime = targetEnd.getTime();
+          finalEndDateString = targetEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
         return {
           ...task,
           priority: editPriority,
           note: editNote.trim(),
-          endDate: newEndDateString,
-          deadlineTime: newDeadlineTime
+          startDate: finalStartDateString,
+          endDate: finalEndDateString,
+          deadlineTime: finalDeadlineTime
         };
       }
       return task;
@@ -211,40 +219,56 @@ export default function App() {
             </h1>
           </div>
           <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">
-            Track your targets with native calendar timelines.
+            Precision micro-scheduling framework.
           </p>
         </header>
 
-        {/* Deploy Form with Calendar System */}
-        <form onSubmit={addTask} className="mb-12 p-3 bg-slate-900/60 border border-slate-800 rounded-2xl shadow-2xl focus-within:border-orange-500/50 focus-within:ring-4 focus-within:ring-orange-500/10 transition-all duration-300">
-          <div className="flex flex-col md:flex-row gap-3">
+        {/* Deploy Form with Dual Calendar System (Start & End) */}
+        <form onSubmit={addTask} className="mb-12 p-4 bg-slate-900/60 border border-slate-800 rounded-2xl shadow-2xl focus-within:border-orange-500/50 focus-within:ring-4 focus-within:ring-orange-500/10 transition-all duration-300">
+          <div className="flex flex-col gap-4">
             <input
               type="text"
               value={newTaskName}
               onChange={(e) => setNewTaskName(e.target.value)}
-              placeholder="What long-term target are we scheduling?..."
-              className="flex-1 px-4 py-3 bg-transparent text-slate-100 text-lg outline-none placeholder:text-slate-500"
+              placeholder="What target target are we scheduling?..."
+              className="w-full px-2 py-2 bg-transparent text-slate-100 text-xl font-bold outline-none placeholder:text-slate-500 border-b border-slate-800/80 focus:border-slate-700 pb-3"
             />
             
-            <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-slate-800 pt-3 md:pt-0 md:pl-3">
-              <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
-                <CalendarIcon className="h-5 w-5 text-orange-500" />
-                <input
-                  type="date"
-                  value={targetDateInput}
-                  onChange={(e) => setTargetDateInput(e.target.value)}
-                  className="bg-transparent font-bold outline-none text-sm text-slate-200 color-scheme-dark filter invert-[0.1] cursor-pointer"
-                />
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1">
+              
+              {/* Dual Range Picker Container */}
+              <div className="flex items-center gap-2 flex-1 flex-wrap sm:flex-nowrap">
+                {/* START PICKER */}
+                <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 flex-1">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Start:</span>
+                  <input
+                    type="date"
+                    value={startDateInput}
+                    onChange={(e) => setStartDateInput(e.target.value)}
+                    className="bg-transparent font-bold outline-none text-xs text-slate-200 cursor-pointer w-full"
+                  />
+                </div>
+
+                {/* END PICKER */}
+                <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 flex-1">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">End:</span>
+                  <input
+                    type="date"
+                    value={endDateInput}
+                    onChange={(e) => setEndDateInput(e.target.value)}
+                    className="bg-transparent font-bold outline-none text-xs text-slate-200 cursor-pointer w-full"
+                  />
+                </div>
               </div>
               
-              <button type="submit" className="flex-1 md:flex-initial px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer">
-                <PlusIcon className="h-5 w-5 stroke-[3]" /> Deploy
+              <button type="submit" className="md:w-auto px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer whitespace-nowrap">
+                <PlusIcon className="h-5 w-5 stroke-[3]" /> Deploy Timeline
               </button>
             </div>
           </div>
         </form>
 
-        {/* Active Task Lists */}
+        {/* Dashboard Cards Feed */}
         <div className="space-y-4">
           {tasks.map(task => {
             const isCompletedToday = task.lastCompleted && new Date(task.lastCompleted).toDateString() === new Date().toDateString();
@@ -257,7 +281,7 @@ export default function App() {
                   isExpired ? 'opacity-50 border-rose-950/40' : task.priority === 'hard' ? 'border-rose-500/30 ring-1 ring-rose-500/10 shadow-lg' : 'border-slate-800/80 shadow-xl'
                 }`}
               >
-                {/* Core Header Row */}
+                {/* Top Information Controls */}
                 <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                   <div className="flex items-center gap-5 flex-1">
                     <button
@@ -282,10 +306,12 @@ export default function App() {
                         </span>
                       </div>
 
-                      {/* Display Human-Readable Start & Target Calendar Boundaries */}
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold tracking-wide">
-                        <CalendarIcon className="h-3.5 w-3.5 text-slate-600" />
-                        <span>Timeline: {task.startDate || 'Today'} ➔ {task.endDate}</span>
+                      {/* Displaying Precise Boundaries */}
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold tracking-wide">
+                        <CalendarIcon className="h-3.5 w-3.5 text-orange-500/80" />
+                        <span className="bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800 text-slate-300">
+                          {task.startDate} ➔ {task.endDate}
+                        </span>
                       </div>
                       
                       {task.note && (
@@ -296,7 +322,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Quantitative System Stats */}
+                  {/* Right Analytics */}
                   <div className="flex items-center justify-between md:justify-end gap-3">
                     <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-mono font-bold bg-slate-950 text-blue-400 border border-slate-800/80">
                       <ClockIcon className="h-4 w-4 text-blue-500" />
@@ -312,12 +338,12 @@ export default function App() {
                       <button
                         onClick={() => { 
                           setEditingTaskId(task.id); 
+                          setEditStartDateInput('');
                           setEditEndDateInput('');
                           setEditPriority(task.priority || 'easy');
                           setEditNote(task.note || '');
                         }}
                         className="text-slate-500 hover:text-blue-400 p-2 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
-                        title="Open Configurations"
                       >
                         <PencilIcon className="h-5 w-5" />
                       </button>
@@ -328,12 +354,12 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Configurations Drawer Panel */}
+                {/* Configurations Expanded Sub-Menu Area */}
                 {editingTaskId === task.id && (
                   <div className="p-5 bg-slate-950 border border-slate-800/80 rounded-2xl space-y-4 animate-fadeIn">
                     <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-900 pb-2">
                       <SparklesIcon className="h-4 w-4 text-orange-500" />
-                      Edit Task Parameters
+                      Re-Configure Timeline Boundaries
                     </h4>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -346,10 +372,8 @@ export default function App() {
                                 key={tier}
                                 type="button"
                                 onClick={() => setEditPriority(tier)}
-                                className={`flex-1 p-2 text-xs font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
-                                  editPriority === tier 
-                                    ? 'bg-orange-500/20 border-orange-500 text-orange-400'
-                                    : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+                                className={`flex-1 p-2 text-xs font-black uppercase tracking-wider rounded-xl border transition-all ${
+                                  editPriority === tier ? 'bg-orange-500/20 border-orange-500 text-orange-400' : 'bg-slate-900 border-slate-800 text-slate-500'
                                 }`}
                               >
                                 {tier}
@@ -358,30 +382,36 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Change Target End Date</label>
-                          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2">
-                            <CalendarIcon className="h-4 w-4 text-slate-500" />
+                        {/* EDIT START & END DATES */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Edit Start</label>
+                            <input 
+                              type="date" 
+                              value={editStartDateInput} 
+                              onChange={(e) => setEditStartDateInput(e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-200"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Edit End</label>
                             <input 
                               type="date" 
                               value={editEndDateInput} 
                               onChange={(e) => setEditEndDateInput(e.target.value)}
-                              className="bg-transparent text-slate-100 font-bold text-sm outline-none cursor-pointer"
+                              className="w-full bg-slate-900 border border-slate-800 p-2 rounded-xl text-xs font-bold outline-none text-slate-200"
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-col justify-between">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Focus Anchor / Description</label>
-                          <textarea
-                            value={editNote}
-                            onChange={(e) => setEditNote(e.target.value)}
-                            placeholder="Shift context parameters or record insights..."
-                            className="w-full h-24 px-3 py-2 bg-slate-900 border border-slate-800 text-slate-100 rounded-xl text-sm outline-none resize-none focus:border-blue-500"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Focus Anchor Description</label>
+                        <textarea
+                          value={editNote}
+                          onChange={(e) => setEditNote(e.target.value)}
+                          className="w-full h-24 px-3 py-2 bg-slate-900 border border-slate-800 text-slate-100 rounded-xl text-sm outline-none resize-none"
+                        />
                       </div>
                     </div>
 
@@ -391,8 +421,7 @@ export default function App() {
                         onClick={() => applyFreezeDay(task.id)}
                         className="px-4 py-2 bg-slate-900 border border-slate-800 hover:border-amber-500/30 text-amber-400 hover:bg-amber-500/5 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
                       >
-                        <ShieldExclamationIcon className="h-4 w-4" />
-                        Apply Freeze Day (+24h)
+                        <ShieldExclamationIcon className="h-4 w-4" /> Apply Freeze Day (+24h)
                       </button>
 
                       <div className="flex gap-2 ml-auto">
@@ -403,7 +432,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Calendar Synchronization Strip */}
+                {/* Bottom Row Calendar Visualization Cells */}
                 <div className="border-t border-slate-800/60 pt-4">
                   <div className="grid grid-cols-7 gap-2 max-w-md">
                     {weekDays.map((day, idx) => {
