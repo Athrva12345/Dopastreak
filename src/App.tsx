@@ -41,10 +41,47 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // 🔄 RE-ENGINEERED: Load tasks AND check for missed deadlines to reset streaks
   useEffect(() => {
     const savedTasks = localStorage.getItem('streak_tasks');
     if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
+      const parsedTasks: Task[] = JSON.parse(savedTasks);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const validatedTasks = parsedTasks.map(task => {
+        if (task.lastCompleted) {
+          const lastCheckIn = new Date(task.lastCompleted);
+          lastCheckIn.setHours(0, 0, 0, 0);
+
+          // Calculate difference in absolute midnights
+          const diffTime = todayStart.getTime() - lastCheckIn.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+          // If more than 1 day has passed without a check-in, streak terminates!
+          if (diffDays > 1 && task.streak > 0) {
+            return {
+              ...task,
+              streak: 0 // Resetting core telemetry parameters
+            };
+          }
+        } else {
+          // If they created a task yesterday or earlier and NEVER ticked it once, make sure it stays at 0
+          const creationDate = new Date(task.startDate);
+          creationDate.setHours(0, 0, 0, 0);
+          const timeSinceCreation = todayStart.getTime() - creationDate.getTime();
+          const daysSinceCreation = Math.floor(timeSinceCreation / (1000 * 60 * 60 * 24));
+          
+          if (daysSinceCreation > 1 && task.streak > 0) {
+            return { ...task, streak: 0 };
+          }
+        }
+        return task;
+      });
+
+      // Save corrected state back immediately
+      setTasks(validatedTasks);
+      localStorage.setItem('streak_tasks', JSON.stringify(validatedTasks));
     }
   }, []);
 
@@ -124,15 +161,19 @@ export default function App() {
     const updated = tasks.map(task => {
       if (task.id === id) {
         const extendedTime = task.deadlineTime + 24 * 60 * 60 * 1000;
+        
+        // 🛡️ A Freeze Day fakes a completion stamp for today so your streak is safe!
         return {
           ...task,
           deadlineTime: extendedTime,
+          lastCompleted: new Date().toISOString(),
           endDate: new Date(extendedTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         };
       }
       return task;
     });
     saveTasks(updated);
+    alert("🛡️ Freeze Core Triggered! Your streak is secured for 24h.");
   };
 
   const completeTaskDaily = (id: string) => {
@@ -209,7 +250,7 @@ export default function App() {
             </h1>
           </div>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.25em] mb-8">
-            Precision Micro-Scheduling Framework // Version 2.0
+            Precision Micro-Scheduling Framework // Version 2.1
           </p>
 
           {/* Global Level Engine Metrics */}
@@ -249,7 +290,7 @@ export default function App() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 flex-1">
                 
-                {/* START CALENDAR - STYLED FIX */}
+                {/* START CALENDAR */}
                 <div className="flex items-center justify-between gap-2.5 bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 py-2 flex-1 focus-within:border-neutral-700 transition-all relative">
                   <span className="text-[10px] text-neutral-500 font-black uppercase tracking-widest font-mono">Start</span>
                   <input
@@ -261,7 +302,7 @@ export default function App() {
                   />
                 </div>
 
-                {/* END CALENDAR - STYLED FIX */}
+                {/* END CALENDAR */}
                 <div className="flex items-center justify-between gap-2.5 bg-neutral-950/80 border border-neutral-800/80 rounded-xl px-3 py-2 flex-1 focus-within:border-neutral-700 transition-all relative">
                   <span className="text-[10px] text-neutral-500 font-black uppercase tracking-widest font-mono">End</span>
                   <input
